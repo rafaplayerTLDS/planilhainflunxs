@@ -214,10 +214,27 @@
         }
 
         th, td {
-            padding: 16px;
+            padding: 14px 16px;
             text-align: left;
             border-bottom: 1px solid rgba(220, 38, 38, 0.2);
-            white-space: nowrap;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        td {
+            font-size: 0.9em;
+        }
+
+        td a {
+            color: #60a5fa;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        td a:hover {
+            color: #93c5fd;
+            text-decoration: underline;
         }
 
         th {
@@ -242,7 +259,8 @@
         }
 
         input[type="text"],
-        input[type="number"] {
+        input[type="number"],
+        select {
             width: 100%;
             padding: 12px;
             border: 1px solid rgba(220, 38, 38, 0.3);
@@ -253,8 +271,19 @@
             transition: all 0.3s ease;
         }
 
+        select {
+            cursor: pointer;
+        }
+
+        select option {
+            background: #1e293b;
+            color: #e0e6ed;
+            padding: 10px;
+        }
+
         input[type="text"]:focus,
-        input[type="number"]:focus {
+        input[type="number"]:focus,
+        select:focus {
             outline: none;
             border-color: #dc2626;
             box-shadow: 0 0 20px rgba(220, 38, 38, 0.4);
@@ -430,7 +459,7 @@
             </div>
             <div class="stat-item">
                 <span class="stat-label">📋 Colunas:</span>
-                <span class="stat-value" id="totalCols">9</span>
+                <span class="stat-value" id="totalCols">6</span>
             </div>
         </div>
 
@@ -505,7 +534,7 @@
 
     <script>
         let data = [];
-        let columns = ['Nome', 'ID da Cidade', '@ Discord', 'ID Discord', '📷 Instagram', '🎵 TikTok', '▶️ YouTube', '🎮 Twitch', '⚡ Kick'];
+        let columns = ['Nome', 'ID da Cidade', '@ Discord', 'ID Discord', 'Plataforma', 'Link/Username'];
         let editingIndex = -1;
 
         // Atualizar estatísticas
@@ -591,13 +620,86 @@
             // Corpo
             tbody.innerHTML = data.map((row, index) => `
                 <tr>
-                    ${columns.map(col => `<td>${row[col] || ''}</td>`).join('')}
+                    ${columns.map(col => {
+                        const value = row[col] || '';
+                        const platform = row['Plataforma'] || '';
+                        return `<td>${formatCell(col, value, platform, row)}</td>`;
+                    }).join('')}
                     <td class="action-buttons">
-                        <button class="btn btn-primary btn-small" onclick="editRow(${index})">✏️ Editar</button>
+                        <button class="btn btn-primary btn-small" onclick="editRow(${index})">✏️</button>
                         <button class="btn btn-danger btn-small" onclick="deleteRow(${index})">🗑️</button>
                     </td>
                 </tr>
             `).join('');
+        }
+
+        // Formatar célula baseado no tipo de dado
+        function formatCell(column, value, platform, row) {
+            if (!value) return '';
+            
+            // Se é a coluna de Link/Username, criar link baseado na plataforma
+            if (column === 'Link/Username' && platform) {
+                // Se já é uma URL completa, usar direto
+                if (value.startsWith('http://') || value.startsWith('https://')) {
+                    return `<a href="${value}" target="_blank" title="${value}">${value}</a>`;
+                }
+                
+                // Criar link baseado na plataforma
+                const username = value.startsWith('@') ? value.substring(1) : value;
+                let url = '';
+                let icon = '';
+                
+                switch(platform) {
+                    case 'Instagram':
+                        url = `https://instagram.com/${username}`;
+                        icon = '📷';
+                        break;
+                    case 'TikTok':
+                        url = `https://tiktok.com/@${username}`;
+                        icon = '🎵';
+                        break;
+                    case 'YouTube':
+                        url = `https://youtube.com/@${username}`;
+                        icon = '▶️';
+                        break;
+                    case 'Twitch':
+                        url = `https://twitch.tv/${username}`;
+                        icon = '🎮';
+                        break;
+                    case 'Kick':
+                        url = `https://kick.com/${username}`;
+                        icon = '⚡';
+                        break;
+                    case 'Twitter':
+                        url = `https://twitter.com/${username}`;
+                        icon = '🐦';
+                        break;
+                    case 'Facebook':
+                        url = `https://facebook.com/${username}`;
+                        icon = '👥';
+                        break;
+                    default:
+                        return value;
+                }
+                
+                return `<a href="${url}" target="_blank" title="${url}">${value}</a>`;
+            }
+            
+            // Se é a coluna Plataforma, adicionar ícone
+            if (column === 'Plataforma') {
+                const icons = {
+                    'Instagram': '📷',
+                    'TikTok': '🎵',
+                    'YouTube': '▶️',
+                    'Twitch': '🎮',
+                    'Kick': '⚡',
+                    'Twitter': '🐦',
+                    'Facebook': '👥'
+                };
+                return `${icons[value] || ''} ${value}`;
+            }
+            
+            return value;
         }
 
         // Abrir modal para adicionar
@@ -606,12 +708,31 @@
             document.getElementById('modalTitle').textContent = 'Adicionar Novo Influencer';
             const form = document.getElementById('dataForm');
             
-            form.innerHTML = columns.map(col => `
-                <div class="form-group">
-                    <label>${col}</label>
-                    <input type="text" id="input_${col.replace(/[^a-zA-Z0-9]/g, '_')}" name="${col}" placeholder="${getPlaceholder(col)}">
-                </div>
-            `).join('');
+            form.innerHTML = columns.map(col => {
+                if (col === 'Plataforma') {
+                    return `
+                        <div class="form-group">
+                            <label>${col}</label>
+                            <select id="input_${col.replace(/[^a-zA-Z0-9]/g, '_')}" name="${col}" style="width: 100%; padding: 12px; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 8px; background: rgba(15, 23, 42, 0.8); color: #e0e6ed; font-size: 14px;">
+                                <option value="">Selecione...</option>
+                                <option value="Instagram">📷 Instagram</option>
+                                <option value="TikTok">🎵 TikTok</option>
+                                <option value="YouTube">▶️ YouTube</option>
+                                <option value="Twitch">🎮 Twitch</option>
+                                <option value="Kick">⚡ Kick</option>
+                                <option value="Twitter">🐦 Twitter/X</option>
+                                <option value="Facebook">👥 Facebook</option>
+                            </select>
+                        </div>
+                    `;
+                }
+                return `
+                    <div class="form-group">
+                        <label>${col}</label>
+                        <input type="text" id="input_${col.replace(/[^a-zA-Z0-9]/g, '_')}" name="${col}" placeholder="${getPlaceholder(col)}">
+                    </div>
+                `;
+            }).join('');
             
             document.getElementById('dataModal').classList.add('active');
         }
@@ -621,13 +742,9 @@
             const placeholders = {
                 'Nome': 'Ex: João Silva',
                 'ID da Cidade': 'Ex: 12345',
-                '@': 'Ex: @nexus',
-                'ID Discord': 'Ex: nexus#1234',
-                '📷 Instagram': 'Ex: @nexus',
-                '🎵 TikTok': 'Ex: @nexus',
-                '▶️ YouTube': 'Ex: @nexusOficial',
-                '🎮 Twitch': 'Ex: nexus',
-                '⚡ Kick': 'Ex: nexus'
+                '@ Discord': 'Ex: @joaosilva',
+                'ID Discord': 'Ex: 1454251233622898549',
+                'Link/Username': 'Ex: @joaosilva ou https://instagram.com/joaosilva'
             };
             return placeholders[col] || '';
         }
@@ -639,12 +756,32 @@
             const form = document.getElementById('dataForm');
             const row = data[index];
             
-            form.innerHTML = columns.map(col => `
-                <div class="form-group">
-                    <label>${col}</label>
-                    <input type="text" id="input_${col.replace(/[^a-zA-Z0-9]/g, '_')}" name="${col}" value="${row[col] || ''}" placeholder="${getPlaceholder(col)}">
-                </div>
-            `).join('');
+            form.innerHTML = columns.map(col => {
+                if (col === 'Plataforma') {
+                    const currentValue = row[col] || '';
+                    return `
+                        <div class="form-group">
+                            <label>${col}</label>
+                            <select id="input_${col.replace(/[^a-zA-Z0-9]/g, '_')}" name="${col}" style="width: 100%; padding: 12px; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 8px; background: rgba(15, 23, 42, 0.8); color: #e0e6ed; font-size: 14px;">
+                                <option value="">Selecione...</option>
+                                <option value="Instagram" ${currentValue === 'Instagram' ? 'selected' : ''}>📷 Instagram</option>
+                                <option value="TikTok" ${currentValue === 'TikTok' ? 'selected' : ''}>🎵 TikTok</option>
+                                <option value="YouTube" ${currentValue === 'YouTube' ? 'selected' : ''}>▶️ YouTube</option>
+                                <option value="Twitch" ${currentValue === 'Twitch' ? 'selected' : ''}>🎮 Twitch</option>
+                                <option value="Kick" ${currentValue === 'Kick' ? 'selected' : ''}>⚡ Kick</option>
+                                <option value="Twitter" ${currentValue === 'Twitter' ? 'selected' : ''}>🐦 Twitter/X</option>
+                                <option value="Facebook" ${currentValue === 'Facebook' ? 'selected' : ''}>👥 Facebook</option>
+                            </select>
+                        </div>
+                    `;
+                }
+                return `
+                    <div class="form-group">
+                        <label>${col}</label>
+                        <input type="text" id="input_${col.replace(/[^a-zA-Z0-9]/g, '_')}" name="${col}" value="${row[col] || ''}" placeholder="${getPlaceholder(col)}">
+                    </div>
+                `;
+            }).join('');
             
             document.getElementById('dataModal').classList.add('active');
         }
