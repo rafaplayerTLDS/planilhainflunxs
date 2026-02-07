@@ -459,7 +459,7 @@
             </div>
             <div class="stat-item">
                 <span class="stat-label">📋 Colunas:</span>
-                <span class="stat-value" id="totalCols">6</span>
+                <span class="stat-value" id="totalCols">7</span>
             </div>
         </div>
 
@@ -534,7 +534,7 @@
 
     <script>
         let data = [];
-        let columns = ['Nome', 'ID da Cidade', '@ Discord', 'ID Discord', 'Plataforma', 'Link/Username'];
+        let columns = ['Nome', 'ID da Cidade', '@ Discord', 'ID Discord', 'Plataforma', 'Link/Username', 'Seguidores'];
         let editingIndex = -1;
 
         // Atualizar estatísticas
@@ -744,7 +744,8 @@
                 'ID da Cidade': 'Ex: 12345',
                 '@ Discord': 'Ex: @joaosilva',
                 'ID Discord': 'Ex: 1454251233622898549',
-                'Link/Username': 'Ex: @joaosilva ou https://instagram.com/joaosilva'
+                'Link/Username': 'Ex: @joaosilva ou https://instagram.com/joaosilva',
+                'Seguidores': 'Ex: 1500 ou 1.5K'
             };
             return placeholders[col] || '';
         }
