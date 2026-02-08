@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus Influencers Manager</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -433,6 +434,38 @@
         .social-icon {
             font-size: 0.9em;
         }
+
+        .save-notification {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 2000;
+            font-weight: 600;
+            animation: slideIn 0.3s ease;
+        }
+
+        .save-notification.show {
+            display: flex;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -532,22 +565,81 @@
         </div>
     </div>
 
+    <!-- Notificação de salvamento -->
+    <div id="saveNotification" class="save-notification">
+        <span>💾</span>
+        <span>Dados salvos automaticamente!</span>
+    </div>
+
     <script>
         let data = [];
         let columns = ['Nome', 'ID da Cidade', '@ Discord', 'ID Discord', 'Plataforma', 'Link/Username', 'Seguidores'];
         let editingIndex = -1;
 
+        // Salvar dados no localStorage
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('nexus_data', JSON.stringify(data));
+                localStorage.setItem('nexus_columns', JSON.stringify(columns));
+                console.log('✅ Dados salvos automaticamente');
+                showSaveNotification();
+            } catch (e) {
+                console.error('❌ Erro ao salvar dados:', e);
+            }
+        }
+
+        // Mostrar notificação de salvamento
+        function showSaveNotification() {
+            const notification = document.getElementById('saveNotification');
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 2000);
+        }
+
+        // Carregar dados do localStorage
+        function loadFromLocalStorage() {
+            try {
+                const savedData = localStorage.getItem('nexus_data');
+                const savedColumns = localStorage.getItem('nexus_columns');
+                
+                if (savedData) {
+                    data = JSON.parse(savedData);
+                    console.log('✅ Dados carregados:', data.length, 'registros');
+                }
+                
+                if (savedColumns) {
+                    columns = JSON.parse(savedColumns);
+                    console.log('✅ Colunas carregadas:', columns.length, 'colunas');
+                }
+                
+                return data.length > 0;
+            } catch (e) {
+                console.error('❌ Erro ao carregar dados:', e);
+                return false;
+            }
+        }
+
         // Atualizar estatísticas
         function updateStats() {
             document.getElementById('totalRows').textContent = data.length;
             document.getElementById('totalCols').textContent = columns.length;
+            saveToLocalStorage(); // Salvar automaticamente sempre que atualizar
         }
 
         // Inicializar com estrutura padrão
         function initializeDefaultStructure() {
-            if (data.length === 0) {
+            // Tentar carregar dados salvos
+            const hasData = loadFromLocalStorage();
+            
+            if (hasData) {
+                console.log('📊 Dados encontrados! Carregando...');
                 renderTable();
+            } else {
+                console.log('📭 Nenhum dado salvo encontrado');
             }
+            
             updateStats();
         }
 
@@ -821,22 +913,121 @@
         // Limpar tabela
         function clearTable() {
             data = [];
+            columns = ['Nome', 'ID da Cidade', '@ Discord', 'ID Discord', 'Plataforma', 'Link/Username', 'Seguidores'];
+            localStorage.removeItem('nexus_data');
+            localStorage.removeItem('nexus_columns');
             renderTable();
             updateStats();
+            console.log('🗑️ Todos os dados foram limpos (inclusive do armazenamento local)');
         }
 
-        // Exportar para Excel
-        function exportToExcel() {
+        // Exportar para Excel com ExcelJS (formatação completa)
+        async function exportToExcel() {
             if (data.length === 0) {
                 return;
             }
 
-            const worksheet = XLSX.utils.json_to_sheet(data);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Influencers');
+            // Criar workbook com ExcelJS
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Influencers');
             
-            const fileName = `nexus_influencers_${new Date().toISOString().split('T')[0]}.xlsx`;
-            XLSX.writeFile(workbook, fileName);
+            // Definir larguras das colunas
+            worksheet.columns = columns.map((col, index) => {
+                const widths = {
+                    'Nome': 22,
+                    'ID da Cidade': 13,
+                    '@ Discord': 20,
+                    'ID Discord': 22,
+                    'Plataforma': 13,
+                    'Link/Username': 70,
+                    'Seguidores': 12
+                };
+                return {
+                    header: col,
+                    key: col,
+                    width: widths[col] || 15
+                };
+            });
+            
+            // Adicionar dados
+            data.forEach(row => {
+                worksheet.addRow(row);
+            });
+            
+            // Estilizar cabeçalho (primeira linha)
+            const headerRow = worksheet.getRow(1);
+            headerRow.height = 25;
+            headerRow.eachCell((cell) => {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FF8B0000' }
+                };
+                cell.font = {
+                    name: 'Calibri',
+                    size: 11,
+                    bold: true,
+                    color: { argb: 'FFFFFFFF' }
+                };
+                cell.alignment = {
+                    horizontal: 'center',
+                    vertical: 'middle'
+                };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                    right: { style: 'thin', color: { argb: 'FF000000' } }
+                };
+            });
+            
+            // Estilizar células de dados
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber === 1) return; // Pular header
+                
+                row.height = 40; // Aumentar altura para permitir quebra de linha
+                row.eachCell((cell, colNumber) => {
+                    cell.font = {
+                        name: 'Calibri',
+                        size: 10
+                    };
+                    cell.alignment = {
+                        horizontal: 'left',
+                        vertical: 'middle',
+                        wrapText: true // Permitir quebra de texto
+                    };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+                        left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+                        bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+                        right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
+                    };
+                    
+                    // Aplicar cor alternada nas linhas
+                    if (rowNumber % 2 === 0) {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFF9F9F9' }
+                        };
+                    }
+                });
+            });
+            
+            // Congelar primeira linha
+            worksheet.views = [
+                { state: 'frozen', xSplit: 0, ySplit: 1 }
+            ];
+            
+            // Gerar arquivo
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `nexus_influencers_${new Date().toISOString().split('T')[0]}.xlsx`;
+            link.click();
+            window.URL.revokeObjectURL(url);
         }
 
         // Fechar modal ao clicar fora
